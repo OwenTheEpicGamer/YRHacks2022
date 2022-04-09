@@ -44,9 +44,18 @@ class Tasks(commands.Cog):
             )
             await user_discord.send(f'Task **{task["name"]}** is overdue!!!\n'
                 + f'As a penalty, you lost {OVERDUE_TASK_POINT_PENALTY} points '
-                + f'(current points: {user_db["points"]})')
+                + f'(current points: {user_db["points"]})\n'
+                + 'Everyone in the server has been notified of this (you should be ashamed)')
 
-        self.reminders[task['_id']] = 'bruh'
+            shaming_list = []
+            for guild in self.bot.guilds:
+                for member in guild.members:
+                    if member != user_discord:
+                        shaming_list.append(member.send(
+                            f'A user {user_discord.mention} did not finish their task **{task["name"]} before the deadline!!!\n'
+                            + f'As a penalty, they lost {OVERDUE_TASK_POINT_PENALTY} points'))
+            await asyncio.gather(*shaming_list)
+
         self.reminders[task['_id']] = asyncio.create_task(remind())
 
     @commands.command(name='addtask')
