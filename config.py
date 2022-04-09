@@ -1,2 +1,2 @@
-token = 'ODU4MTkxOTU4ODQ1Njg1Nzgx.YNajiw.evrEFRpNqOl39GmdXsdWFf6i-Bw'
+token = 'OTYyNDUwMzIwNjA3MzEzOTIw.YlHttQ.AcycefWXXHiQHjXG4k8RhlvQzQY'
 mongo_password = 'XsXPZH4CiCr9cHE2'
