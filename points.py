@@ -18,9 +18,10 @@ class Points(commands.Cog):
     @commands.command(name='leaderboard')
     async def leaderboard(self, ctx: commands.Context):
         embed = Embed(title='Point Leaderboard', color=Color.blue())
-        for x in self.db.users.find().sort('points', -1):
-            user = await self.bot.fetch_user(x['user_id'])
-            embed.add_field(name=user.name, value=x['points'], inline=False)
+        for user_db in self.db.users.find().sort('points', -1):
+            if 'points' in user_db:
+                user_discord = await self.bot.fetch_user(user_db['user_id'])
+                embed.add_field(name=user_discord.name, value=user_db['points'], inline=False)
         await ctx.send(embed=embed)
 
     # A little bit of trolling
