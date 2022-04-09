@@ -78,7 +78,7 @@ class Timer(commands.Cog):
         number = int(number)
         while count <= number:
             await ctx.send(f"{ctx.author.mention} Study session number {count} has started!")
-            pomoTime = 15
+            pomoTime = 1500
             
             isStudy = True
             while True:
@@ -92,7 +92,7 @@ class Timer(commands.Cog):
                     break
 
             await ctx.send(f"{ctx.author.mention} Break session number {count} has started!")
-            pomoTime = 3
+            pomoTime = 300
             isStudy = False
             while True:
                 try:
@@ -105,26 +105,6 @@ class Timer(commands.Cog):
                     break
             count = count + 1
 
-    @commands.command(name='pomodorotime')
-    async def pomodorotime(self, ctx: commands.Context, number): 
-        global pomoTime
-        global count
-        global isStudy
-
-        if isStudy:
-            if pomoTime >= 3600:
-                message = await ctx.send(f"Time Remaining on Study Session {count}: {time//3600} hours {time%3600//60} minutes {time%60} seconds")
-            elif pomoTime >= 60:
-                message = await ctx.send(f"Time Remaining on Study Session {count}: {time//60} minutes {time%60} seconds")
-            elif pomoTime < 60:
-                message = await ctx.send(f"Time Remaining on Study Session {count}: {time} seconds")
-        if not isStudy:
-            if pomoTime >= 3600:
-                message = await ctx.send(f"Time Remaining on Break Number {count}: {time//3600} hours {time%3600//60} minutes {time%60} seconds")
-            elif pomoTime >= 60:
-                message = await ctx.send(f"Time Remaining on Break Number {count}: {time//60} minutes {time%60} seconds")
-            elif pomoTime < 60:
-                message = await ctx.send(f"Time Remaining on Break Number {count}: {time} seconds")
-
+    
 def setup(bot: commands.Bot):
     bot.add_cog(Timer(bot))
