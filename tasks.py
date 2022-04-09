@@ -1,17 +1,53 @@
+from re import S
 from database import get_database
-from discord.ext import commands
+from discord.ext import tasks, commands
 from discord import Color, Embed
 from pymongo import ReturnDocument
 from random import randint
 from datetime import datetime
 import dateparser
 import timeago
+import asyncio
+
+OVERDUE_TASK_POINT_PENALTY = 10
+COMPLETE_TASK_POINT_REWARD_LOW = 3
+COMPLETE_TASK_POINT_REWARD_HIGH = 3
 
 class Tasks(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.db = get_database()
+        self.reminders = {}  # kinda scuffed but wtv
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        for task in self.db.tasks.find():
+            await self.schedule_task(task)
+
+    async def schedule_task(self, task):
+        if task['_id'] in self.reminders:
+            self.reminders.pop(task['_id']).cancel()
+
+        now = datetime.utcnow()
+        if task['deadline'] < now:
+            return
+
+        async def remind():
+            await asyncio.sleep((task['deadline'] - now).total_seconds())
+            user_discord = await self.bot.fetch_user(task['user_id'])
+            user_db = self.db.users.find_one_and_update(
+                { 'user_id': task['user_id'] },
+                { '$inc' : { 'points': -OVERDUE_TASK_POINT_PENALTY } },
+                upsert=True,
+                return_document=ReturnDocument.AFTER
+            )
+            await user_discord.send(f'Task **{task["name"]}** is overdue!!!\n'
+                + f'As a penalty, you lost {OVERDUE_TASK_POINT_PENALTY} points '
+                + f'(current points: {user_db["points"]})')
+
+        self.reminders[task['_id']] = 'bruh'
+        self.reminders[task['_id']] = asyncio.create_task(remind())
 
     @commands.command(name='addtask')
     async def addtask(self, ctx: commands.Context, name: str, deadline: str):
@@ -25,12 +61,15 @@ class Tasks(commands.Cog):
         if deadline is None:
             await ctx.send(f'{ctx.author.mention} invalid deadline!')
             return
-        res = self.db.tasks.update_one(
+        task = self.db.tasks.find_one_and_update(
             { 'user_id': ctx.author.id, 'name': name },
             { '$set': { 'deadline': deadline } },
-            upsert=True
+            upsert=True,
+            return_document=ReturnDocument.AFTER
         )
-        await ctx.send(f'{ctx.author.mention} task **{name}** {"added" if res.upserted_id else "updated"} successfully!')
+        upserted = task['_id'] not in self.reminders
+        await self.schedule_task(task)
+        await ctx.send(f'{ctx.author.mention} task **{name}** {"added" if upserted else "updated"} successfully!')
 
     @commands.command(name='done')
     async def done(self, ctx: commands.Context, name: str):
@@ -38,9 +77,11 @@ class Tasks(commands.Cog):
         if task is None:
             await ctx.send(f'{ctx.author.mention} task **{name}** does not exist!')
         else:
+            if task['_id'] in self.reminders:
+                self.reminders.pop(task['_id']).cancel()
             now = datetime.utcnow()
             if task['deadline'] >= now:
-                pts = randint(3, 7)
+                pts = randint(COMPLETE_TASK_POINT_REWARD_LOW, COMPLETE_TASK_POINT_REWARD_HIGH)
                 user = self.db.users.find_one_and_update(
                     { 'user_id': ctx.author.id },
                     { '$inc' : { 'points': pts } },
@@ -57,8 +98,8 @@ class Tasks(commands.Cog):
         embed = Embed(title='Your Tasks', color=Color.green())
         user_tasks = self.db.tasks.find({ 'user_id': ctx.author.id }).sort('deadline')
         now = datetime.utcnow()
-        for x in user_tasks:
-            embed.add_field(name=x['name'], value='due ' + timeago.format(x['deadline'], now), inline=False)
+        for task in user_tasks:
+            embed.add_field(name=task['name'], value='due ' + timeago.format(task['deadline'], now), inline=False)
         if user_tasks.retrieved == 0:
             await ctx.send(f'{ctx.author.mention} tasks all done!')
         else:
